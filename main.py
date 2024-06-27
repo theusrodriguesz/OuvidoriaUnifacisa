@@ -1,5 +1,6 @@
 from tkinter import *
-from tkinter import ttk, simpledialog, messagebox
+from tkinter import ttk
+from tkinter import simpledialog, messagebox
 from PIL import Image, ImageTk
 
 class SistemaOcorrencias:
@@ -21,9 +22,10 @@ class SistemaOcorrencias:
     def excluir_todas_ocorrencias(self):
         self.ocorrencias = []
 
-    def atualizar_ocorrencia(self, cpf, descricao):
+    def atualizar_ocorrencia(self, cpf, tipo, descricao):
         for o in self.ocorrencias:
             if o['cpf'] == cpf:
+                o['tipo'] = tipo
                 o['descricao'] = descricao
                 return
 
@@ -36,26 +38,13 @@ class OuvidoriaApp:
         self.root = root
         self.root.title("UNIFACISA")
 
-        # Configurar fundo com imagem com opacidade
-        self.configure_background()
+        # Definindo o ícone da aplicação na barra de tarefas
+        self.root.iconbitmap('images/facisaicon.ico')
+
+        # Configurar fundo sólido azul escuro
+        self.root.configure(bg='dark blue')
 
         self.create_widgets()
-
-    def configure_background(self):
-        # Carregar imagem de fundo com opacidade baixa
-        self.background_img = Image.open("images/background.jpg")
-        self.background_img = self.background_img.resize((800, 600), Image.ANTIALIAS)  # Ajuste o tamanho conforme necessário
-        self.background_img = self.background_img.convert("RGBA")
-
-        # Adicionar opacidade (alpha) à imagem
-        self.background_with_alpha = Image.new("RGBA", self.background_img.size, (0, 0, 0, 100))
-        self.background = Image.alpha_composite(self.background_with_alpha, self.background_img)
-        self.background = self.background.convert("RGB")  # Convertendo de volta para RGB para Tkinter
-        self.background_photo = ImageTk.PhotoImage(self.background)
-
-        # Criar Label para a imagem de fundo
-        self.background_label = Label(self.root, image=self.background_photo)
-        self.background_label.place(x=0, y=0, relwidth=1, relheight=1)  # Colocando o Label na janela principal
 
     def create_widgets(self):
         # Header
@@ -124,7 +113,7 @@ class OuvidoriaApp:
         self.listar_img = Image.open("images/listaTODOS.png").resize((50, 50), Image.LANCZOS)
         self.listar_photo = ImageTk.PhotoImage(self.listar_img)
 
-        # Botões
+        #Botões
 
         botoes = [
             ("Elogio", self.elogio_photo, lambda: self.adicionar_ocorrencia("ELOGIO")),
@@ -138,14 +127,14 @@ class OuvidoriaApp:
             ("Exibir por Tipo", self.exibir_tipo_photo, self.exibir_por_tipo)
         ]
 
-        # Organizacao dos botoes na grade
+        #Organizacao da grade!
         for i, (text, image, command) in enumerate(botoes):
             row = i // 3
             col = i % 3
             button = ttk.Button(self.button_frame, text=text, image=image, compound="top", command=command, style="TButton")
             button.grid(row=row, column=col, padx=10, pady=10)
 
-        # Botão de SAIR do programa
+        # Botão de SAIR do programa!
         self.exit_frame = ttk.Frame(self.root, style="Menu.TFrame")
         self.exit_frame.pack(side="bottom", anchor="e", padx=10, pady=10)
 
