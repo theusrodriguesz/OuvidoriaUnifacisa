@@ -1,54 +1,34 @@
-import tkinter as tk
-from tkinter import messagebox, simpledialog, ttk
+from tkinter import *
+from tkinter import ttk, simpledialog, messagebox
 from PIL import Image, ImageTk
-from pymongo import MongoClient
 
 class SistemaOcorrencias:
     def __init__(self):
-        self.client = MongoClient('localhost', 27017)
-        self.db = self.client['ouvidoria']
-        self.collection = self.db['ocorrencias']
+        self.ocorrencias = []
+
+    def adicionar_ocorrencia(self, cpf, tipo, descricao):
+        self.ocorrencias.append({'cpf': cpf, 'tipo': tipo, 'descricao': descricao})
 
     def exibir_ocorrencias(self):
-        ocorrencias = self.collection.find()
-        return [{"nome": o["nome"], "tipo": o["tipo"], "descricao": o["descricao"]} for o in ocorrencias]
+        return self.ocorrencias
 
-    def adicionar_ocorrencia(self, nome, tipo, descricao):
-        ocorrencia = {"nome": nome, "tipo": tipo, "descricao": descricao}
-        self.collection.insert_one(ocorrencia)
+    def exibir_ocorrencias_por_cpf(self, cpf):
+        return [o for o in self.ocorrencias if o['cpf'] == cpf]
 
-    def exibir_ocorrencias_por_tipo(self, tipo):
-        ocorrencias = self.collection.find({"tipo": tipo})
-        return [{"nome": o["nome"], "tipo": o["tipo"], "descricao": o["descricao"]} for o in ocorrencias]
+    def excluir_ocorrencia_por_cpf(self, cpf):
+        self.ocorrencias = [o for o in self.ocorrencias if o['cpf'] != cpf]
 
     def excluir_todas_ocorrencias(self):
-        self.collection.delete_many({})
+        self.ocorrencias = []
 
-    def excluir_ocorrencia_por_nome(self, nome):
-        self.collection.delete_one({"nome": nome})
+    def atualizar_ocorrencia(self, cpf, descricao):
+        for o in self.ocorrencias:
+            if o['cpf'] == cpf:
+                o['descricao'] = descricao
+                return
 
-class CustomDialog(simpledialog.Dialog):
-    def __init__(self, parent, title=None):
-        self.nome = None
-        self.descricao = None
-        super().__init__(parent, title)
-
-    def body(self, master):
-        ttk.Label(master, text="Digite seu nome:").grid(row=0, column=0, padx=5, pady=5)
-        self.nome_entry = ttk.Entry(master)
-        self.nome_entry.grid(row=0, column=1, padx=5, pady=5)
-
-        ttk.Label(master, text="Descrição:").grid(row=1, column=0, padx=5, pady=5)
-        self.descricao_entry = ttk.Entry(master)
-        self.descricao_entry.grid(row=1, column=1, padx=5, pady=5)
-        return self.nome_entry  # initial focus
-
-    def apply(self):
-        self.nome = self.nome_entry.get()
-        self.descricao = self.descricao_entry.get()
-
-    def get_values(self):
-        return self.nome, self.descricao
+    def exibir_ocorrencias_por_tipo(self, tipo):
+        return [o for o in self.ocorrencias if o['tipo'] == tipo]
 
 class OuvidoriaApp:
     def __init__(self, root):
@@ -56,13 +36,26 @@ class OuvidoriaApp:
         self.root = root
         self.root.title("UNIFACISA")
 
-        # Definindo o ícone da aplicação na barra de tarefas
-        self.root.iconbitmap('images/facisaicon.ico')
-
-        # Configurar fundo sólido azul escuro
-        self.root.configure(bg='dark blue')
+        # Configurar fundo com imagem com opacidade
+        self.configure_background()
 
         self.create_widgets()
+
+    def configure_background(self):
+        # Carregar imagem de fundo com opacidade baixa
+        self.background_img = Image.open("images/background.jpg")
+        self.background_img = self.background_img.resize((800, 600), Image.ANTIALIAS)  # Ajuste o tamanho conforme necessário
+        self.background_img = self.background_img.convert("RGBA")
+
+        # Adicionar opacidade (alpha) à imagem
+        self.background_with_alpha = Image.new("RGBA", self.background_img.size, (0, 0, 0, 100))
+        self.background = Image.alpha_composite(self.background_with_alpha, self.background_img)
+        self.background = self.background.convert("RGB")  # Convertendo de volta para RGB para Tkinter
+        self.background_photo = ImageTk.PhotoImage(self.background)
+
+        # Criar Label para a imagem de fundo
+        self.background_label = Label(self.root, image=self.background_photo)
+        self.background_label.place(x=0, y=0, relwidth=1, relheight=1)  # Colocando o Label na janela principal
 
     def create_widgets(self):
         # Header
@@ -71,7 +64,7 @@ class OuvidoriaApp:
 
         # Logotipo da FACISA
         self.logo_img = Image.open("images/Facisa.png")
-        self.logo_img = self.logo_img.resize((100, 100), Image.ANTIALIAS)
+        self.logo_img = self.logo_img.resize((100, 100), Image.LANCZOS)
         self.logo_photo = ImageTk.PhotoImage(self.logo_img)
         self.logo_label = ttk.Label(self.header_frame, image=self.logo_photo, style="Header.TLabel")
         self.logo_label.pack()
@@ -79,10 +72,10 @@ class OuvidoriaApp:
         self.university_frame = ttk.Frame(self.header_frame, style="Header.TFrame")
         self.university_frame.pack()
 
-        self.uni_label = ttk.Label(self.university_frame, text="UNIFACISA", font=("Helvetica", 16), foreground="white", style="Header.TLabel")
+        self.uni_label = ttk.Label(self.university_frame, text="FACISA", font=("Helvetica", 16), foreground="white", style="Header.TLabel")
         self.uni_label.pack(side="left")
 
-        self.title_label = ttk.Label(self.header_frame, text="SISTEMA DE OUVIDORIA", font=("Helvetica", 14), foreground="white", style="Header.TLabel")
+        self.title_label = ttk.Label(self.header_frame, text="Sistema de Ouvidoria", font=("Helvetica", 14), foreground="white", style="Header.TLabel")
         self.title_label.pack()
 
         # Botões do MENU - configuração
@@ -93,38 +86,66 @@ class OuvidoriaApp:
         style.configure("TButton",
                         font=("Helvetica", 12),
                         padding=10)
-        
+
         style.configure("Header.TFrame", background="dark blue")
         style.configure("Header.TLabel", background="dark blue", foreground="white")
         style.configure("Menu.TFrame", background="dark blue")
-        
+
         style.map("TButton",
                   background=[('active', '#0052cc'), ('!active', 'white')],
                   foreground=[('active', 'white'), ('!active', 'black')])
 
-        self.elogio_img = Image.open("images/elogio.png").resize((50, 50), Image.ANTIALIAS)
+        # Ícones dos botões
+
+        self.elogio_img = Image.open("images/elogio.png").resize((50, 50), Image.LANCZOS)
         self.elogio_photo = ImageTk.PhotoImage(self.elogio_img)
-        self.critica_img = Image.open("images/critica.png").resize((50, 50), Image.ANTIALIAS)
+
+        self.critica_img = Image.open("images/critica.png").resize((50, 50), Image.LANCZOS)
         self.critica_photo = ImageTk.PhotoImage(self.critica_img)
-        self.sugestao_img = Image.open("images/sugestao.png").resize((50, 50), Image.ANTIALIAS)
+
+        self.sugestao_img = Image.open("images/sugestao.png").resize((50, 50), Image.LANCZOS)
         self.sugestao_photo = ImageTk.PhotoImage(self.sugestao_img)
 
-        self.elogio_btn = ttk.Button(self.button_frame, text="ELOGIO", image=self.elogio_photo, compound="top", command=lambda: self.adicionar_ocorrencia("ELOGIO"), style="TButton")
-        self.elogio_btn.grid(row=0, column=0, padx=10, pady=10)
+        self.exibir_usuario_img = Image.open("images/listauser.png").resize((50, 50), Image.LANCZOS)
+        self.exibir_usuario_photo = ImageTk.PhotoImage(self.exibir_usuario_img)
 
-        self.critica_btn = ttk.Button(self.button_frame, text="CRÍTICA", image=self.critica_photo, compound="top", command=lambda: self.adicionar_ocorrencia("CRÍTICA"), style="TButton")
-        self.critica_btn.grid(row=0, column=1, padx=10, pady=10)
+        self.excluir_todas_img = Image.open("images/deletarTODOSS.png").resize((50, 50), Image.LANCZOS)
+        self.excluir_todas_photo = ImageTk.PhotoImage(self.excluir_todas_img)
 
-        self.sugestao_btn = ttk.Button(self.button_frame, text="SUGESTÃO", image=self.sugestao_photo, compound="top", command=lambda: self.adicionar_ocorrencia("SUGESTÃO"), style="TButton")
-        self.sugestao_btn.grid(row=0, column=2, padx=10, pady=10)
+        self.excluir_por_cpf_img = Image.open("images/deletarCPF.png").resize((50, 50), Image.LANCZOS)
+        self.excluir_por_cpf_photo = ImageTk.PhotoImage(self.excluir_por_cpf_img)
 
-        self.listar_btn = ttk.Button(self.button_frame, text="Listar todas as ocorrências", command=self.listar_ocorrencias, style="TButton")
-        self.listar_btn.grid(row=1, column=0, columnspan=3, padx=10, pady=10)
+        self.atualizar_img = Image.open("images/atualizar.png").resize((50, 50), Image.LANCZOS)
+        self.atualizar_photo = ImageTk.PhotoImage(self.atualizar_img)
 
-        self.exibir_usuario_btn = ttk.Button(self.button_frame, text="Exibir ocorrências de um usuário", command=self.exibir_por_usuario, style="TButton")
-        self.exibir_usuario_btn.grid(row=2, column=0, columnspan=3, padx=10, pady=10)
+        self.exibir_tipo_img = Image.open("images/exibirPORtipo.png").resize((50, 50), Image.LANCZOS)
+        self.exibir_tipo_photo = ImageTk.PhotoImage(self.exibir_tipo_img)
 
-        # Frame para o botão de sair no canto inferior direito
+        self.listar_img = Image.open("images/listaTODOS.png").resize((50, 50), Image.LANCZOS)
+        self.listar_photo = ImageTk.PhotoImage(self.listar_img)
+
+        # Botões
+
+        botoes = [
+            ("Elogio", self.elogio_photo, lambda: self.adicionar_ocorrencia("ELOGIO")),
+            ("Crítica", self.critica_photo, lambda: self.adicionar_ocorrencia("CRÍTICA")),
+            ("Sugestão", self.sugestao_photo, lambda: self.adicionar_ocorrencia("SUGESTÃO")),
+            ("Listar", self.listar_photo, self.listar_ocorrencias),
+            ("Exibir por CPF", self.exibir_usuario_photo, self.exibir_por_cpf),
+            ("Excluir Todas", self.excluir_todas_photo, self.excluir_todas),
+            ("Excluir por CPF", self.excluir_por_cpf_photo, self.excluir_por_cpf),
+            ("Atualizar", self.atualizar_photo, self.atualizar_ocorrencia),
+            ("Exibir por Tipo", self.exibir_tipo_photo, self.exibir_por_tipo)
+        ]
+
+        # Organizacao dos botoes na grade
+        for i, (text, image, command) in enumerate(botoes):
+            row = i // 3
+            col = i % 3
+            button = ttk.Button(self.button_frame, text=text, image=image, compound="top", command=command, style="TButton")
+            button.grid(row=row, column=col, padx=10, pady=10)
+
+        # Botão de SAIR do programa
         self.exit_frame = ttk.Frame(self.root, style="Menu.TFrame")
         self.exit_frame.pack(side="bottom", anchor="e", padx=10, pady=10)
 
@@ -148,42 +169,91 @@ class OuvidoriaApp:
 
     def adicionar_ocorrencia(self, tipo):
         dialog = CustomDialog(self.root, f"Adicionar {tipo}")
-        nome, descricao = dialog.get_values()
+        cpf, descricao = dialog.get_values()
 
-        if nome and descricao:
-            self.sistema.adicionar_ocorrencia(nome, tipo, descricao)
-            messagebox.showinfo("Sucesso", f"{tipo} adicionada com sucesso.")
+        if cpf and descricao:
+            try:
+                self.sistema.adicionar_ocorrencia(cpf, tipo, descricao)
+                messagebox.showinfo("Sucesso", f"{tipo} adicionada com sucesso.")
+            except ValueError as e:
+                messagebox.showerror("Erro", str(e))
 
-    def exibir_por_usuario(self):
-        tipo = self.input_dialog("Exibir Ocorrências de um Usuário", "Digite o tipo (crítica, elogio ou sugestão):")
-        if tipo:
-            ocorrencias = self.sistema.exibir_ocorrencias_por_tipo(tipo)
+    def exibir_por_cpf(self):
+        cpf = self.input_dialog("Exibir Ocorrências por CPF", "Digite um CPF:")
+        if cpf:
+            ocorrencias = self.sistema.exibir_ocorrencias_por_cpf(cpf)
             self.mostrar_ocorrencias(ocorrencias)
 
     def excluir_todas(self):
         self.sistema.excluir_todas_ocorrencias()
         messagebox.showinfo("Sucesso", "Todas as ocorrências foram excluídas.")
 
-    def excluir_por_nome(self):
-        nome = self.input_dialog("Excluir Ocorrência", "Digite o nome da ocorrência a ser excluída:")
-        if nome:
-            self.sistema.excluir_ocorrencia_por_nome(nome)
-            messagebox.showinfo("Sucesso", f"Ocorrência '{nome}' foi excluída.")
+    def excluir_por_cpf(self):
+        cpf = self.input_dialog("Excluir Ocorrência", "Digite o CPF da ocorrência a ser excluída:")
+        if cpf:
+            self.sistema.excluir_ocorrencia_por_cpf(cpf)
+            messagebox.showinfo("Sucesso", f"Ocorrência do CPF {cpf} foi excluída.")
+
+    def atualizar_ocorrencia(self):
+        cpf = self.input_dialog("Atualizar Ocorrência", "Digite o CPF da ocorrência a ser atualizada:")
+        if cpf:
+            dialog = CustomDialog(self.root, "Atualizar Ocorrência")
+            _, descricao = dialog.get_values()
+
+            if descricao:
+                self.sistema.atualizar_ocorrencia(cpf, descricao)
+                messagebox.showinfo("Sucesso", f"Ocorrência do CPF {cpf} foi atualizada.")
+
+    def exibir_por_tipo(self):
+        tipo = self.input_dialog("Exibir Ocorrências por Tipo", "Digite o tipo de ocorrência a ser exibida:")
+        if tipo:
+            ocorrencias = self.sistema.exibir_ocorrencias_por_tipo(tipo)
+            self.mostrar_ocorrencias(ocorrencias)
 
     def input_dialog(self, title, prompt):
         input_value = simpledialog.askstring(title, prompt)
         return input_value
 
     def mostrar_ocorrencias(self, ocorrencias):
-        ocorrencias_text = "\n".join([f"Nome: {o['nome']}, Tipo: {o['tipo']}, Descrição: {o['descricao']}" for o in ocorrencias])
-        ocorrencias_lista = "\n".join([f"{o['nome']} - {o['tipo']} - {o['descricao']}" for o in ocorrencias])
-        ocorrencias_janelas = ocorrencias_lista.split('\n')
-        ocorrencias_columns = [ocorrencias_janelas[i:i+3] for i in range(0, len(ocorrencias_janelas), 3)]
-        
-        ocorrencias_text = "\n\n".join(["\n".join(column) for column in ocorrencias_columns])
-        messagebox.showinfo("Ocorrências", ocorrencias_text if ocorrencias_text else "Nenhuma ocorrência encontrada.")
+        if ocorrencias:
+            ocorrencias_text = "\n\n".join([f"CPF: {o['cpf']}, Tipo: {o['tipo']}, Descrição: {o['descricao']}" for o in ocorrencias])
+        else:
+            ocorrencias_text = "Nenhuma ocorrência encontrada."
+        messagebox.showinfo("Ocorrências", ocorrencias_text)
+
+
+class CustomDialog:
+    def __init__(self, parent, title):
+        self.parent = parent
+        self.title = title
+        self.dialog = Toplevel(parent)
+        self.dialog.title(title)
+
+        self.create_widgets()
+
+    def create_widgets(self):
+        self.cpf_label = Label(self.dialog, text="CPF:")
+        self.cpf_label.grid(row=0, column=0, padx=10, pady=10)
+        self.cpf_entry = Entry(self.dialog)
+        self.cpf_entry.grid(row=0, column=1, padx=10, pady=10)
+
+        self.descricao_label = Label(self.dialog, text="Descrição:")
+        self.descricao_label.grid(row=1, column=0, padx=10, pady=10)
+        self.descricao_entry = Entry(self.dialog)
+        self.descricao_entry.grid(row=1, column=1, padx=10, pady=10)
+
+        self.confirm_button = Button(self.dialog, text="Confirmar", command=self.dialog_ok)
+        self.confirm_button.grid(row=2, column=0, columnspan=2, padx=10, pady=10)
+
+    def dialog_ok(self):
+        self.dialog.destroy()
+
+    def get_values(self):
+        self.parent.wait_window(self.dialog)
+        return self.cpf_entry.get(), self.descricao_entry.get()
+
 
 if __name__ == "__main__":
-    root = tk.Tk()
+    root = Tk()
     app = OuvidoriaApp(root)
     root.mainloop()
